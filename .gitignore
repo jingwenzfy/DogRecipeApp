@@ -2,3 +2,5 @@
 *.xcodeproj
 DogRecipeApp/
 *.xlsx
+!docs/*.xlsx
+.venv/
