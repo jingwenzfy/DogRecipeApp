@@ -1,0 +1,27 @@
+name: DogRecipeApp
+options:
+  bundleIdPrefix: com.lele
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: zh-Hans
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+targets:
+  DogRecipeApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: DogRecipeApp
+    settings:
+      base:
+        INFOPLIST_FILE: DogRecipeApp/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: 乐乐食谱
+        PRODUCT_BUNDLE_IDENTIFIER: com.lele.DogRecipeApp
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    dependencies:
+      - package: CoreXLSX
+packages:
+  CoreXLSX:
+    url: https://github.com/CoreOffice/CoreXLSX
+    from: "0.14.0"
