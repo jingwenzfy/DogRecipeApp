@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>乐乐食谱</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #1c1c1e;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #c7c7cc;
+  --accent: #007aff;
+  --green: #34c759;
+  --orange: #ff9500;
+  --red: #ff3b30;
+  --divider: #e5e5ea;
+  --input-bg: #f2f2f7;
+  --shadow: 0 2px 8px rgba(0,0,0,0.04);
+  --radius: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --text: #f5f5f7;
+    --text-secondary: #98989d;
+    --text-tertiary: #48484a;
+    --divider: #38383a;
+    --input-bg: #2c2c2e;
+    --shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 0 16px 60px;
+}
+
+/* Nav */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  padding: 16px 0 8px;
+}
+.nav h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Upload */
+.upload-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius);
+  background: rgba(0,122,255,0.04);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 16px;
+}
+.upload-area:active { transform: scale(0.98); }
+.upload-area.imported {
+  padding: 12px;
+  border-style: solid;
+  border-color: var(--divider);
+  background: var(--input-bg);
+}
+.upload-area .icon { font-size: 22px; }
+.upload-area .label {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.upload-area.imported .label { color: var(--text-secondary); }
+#fileInput { display: none; }
+
+/* Card */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+/* Section Header */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.section-header .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Total Weight */
+.total-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px;
+}
+.total-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.total-input-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.total-input {
+  font-size: 40px;
+  font-weight: 700;
+  font-family: "SF Pro Rounded", -apple-system, sans-serif;
+  text-align: center;
+  width: 160px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  -moz-appearance: textfield;
+}
+.total-input::-webkit-outer-spin-button,
+.total-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.total-unit {
+  font-size: 20px;
+  color: var(--text-secondary);
+}
+.confirm-btn {
+  margin-top: 12px;
+  padding: 6px 20px;
+  border: none;
+  border-radius: 20px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.confirm-btn:active { opacity: 0.7; }
+
+/* Row */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+}
+.row + .row { border-top: 1px solid var(--divider); }
+.row-info { flex: 1; min-width: 0; }
+.row-name { font-size: 16px; }
+.row-note {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.row-value {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.weight-input {
+  width: 72px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 16px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  text-align: right;
+  outline: none;
+  transition: background 0.2s;
+  -moz-appearance: textfield;
+}
+.weight-input::-webkit-outer-spin-button,
+.weight-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.weight-input:focus { background: rgba(0,122,255,0.08); }
+.row-unit {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.amount-text {
+  font-size: 16px;
+  font-family: "SF Mono", ui-monospace, monospace;
+}
+
+/* Delta */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "SF Mono", ui-monospace, monospace;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.delta.up { color: var(--red); background: rgba(255,59,48,0.1); }
+.delta.down { color: var(--green); background: rgba(52,199,89,0.1); }
+
+/* Notes */
+.note-item {
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 2px 16px;
+  line-height: 1.5;
+}
+.note-item:last-child { padding-bottom: 12px; }
+
+/* Clear */
+.clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 16px auto 0;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+}
+.clear-btn:active { opacity: 0.5; }
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="nav">
+    <h1 id="appTitle">狗狗食谱</h1>
+  </div>
+
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <span class="icon">📄</span>
+    <span class="label" id="uploadLabel">上传食谱文件 (.xlsx)</span>
+  </div>
+  <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+  <div id="recipeContent" class="hidden">
+    <!-- Total Weight -->
+    <div class="card">
+      <div class="total-card">
+        <span class="total-label">总克数</span>
+        <div class="total-input-row">
+          <input type="number" class="total-input" id="totalInput" value="0" inputmode="decimal">
+          <span class="total-unit">克</span>
+        </div>
+        <div id="totalDelta"></div>
+        <button class="confirm-btn" id="confirmBtn">确认</button>
+      </div>
+    </div>
+
+    <!-- Ingredients -->
+    <div class="card">
+      <div class="section-header">
+        <span class="dot" style="background:var(--green)"></span>
+        食材
+      </div>
+      <div id="ingredientsList"></div>
+    </div>
+
+    <!-- Supplements -->
+    <div class="card" id="supplementsCard">
+      <div class="section-header">
+        <span class="dot" style="background:var(--orange)"></span>
+        补剂
+      </div>
+      <div id="supplementsList"></div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card hidden" id="notesCard">
+      <div class="section-header">
+        <span class="dot" style="background:var(--red)"></span>
+        注意事项
+      </div>
+      <div id="notesList"></div>
+    </div>
+
+    <button class="clear-btn" id="clearBtn">↺ 清除变化标记</button>
+  </div>
+</div>
+
+<script>
+const state = {
+  recipe: null,
+  totalWeight: 0,
+  prevTotalWeight: null,
+};
+
+// --- Parsing ---
+
+function parseXLSX(data) {
+  const wb = XLSX.read(data, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  const recipe = {
+    title: '食谱',
+    dailyIntake: 160,
+    ingredients: [],
+    supplements: [],
+    notes: [],
+  };
+
+  let inDataSection = false;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const colA = String(row[0] ?? '').trim();
+    const colB = String(row[1] ?? '').trim();
+    const colC = String(row[2] ?? '').trim();
+
+    if (i === 0) {
+      if (colA) recipe.title = colA;
+      continue;
+    }
+
+    if (colA.startsWith('食材')) {
+      inDataSection = true;
+      continue;
+    }
+
+    if (inDataSection) {
+      if (!colA) { inDataSection = false; continue; }
+
+      if (colB.includes('1kg食材添加') || colB.includes('1kg')) {
+        const parsed = parsePerKgAmount(colB);
+        if (parsed) {
+          recipe.supplements.push({
+            name: colA,
+            amountPerKg: parsed.amount,
+            unit: parsed.unit,
+            note: colC,
+            currentAmount: 0,
+            prevAmount: null,
+          });
+        }
+        continue;
+      }
+
+      const pct = parseFloat(colB);
+      if (pct > 0 && pct <= 100) {
+        recipe.ingredients.push({
+          name: colA,
+          percentage: pct,
+          note: colC,
+          currentWeight: 0,
+          prevWeight: null,
+        });
+        continue;
+      }
+    }
+
+    if (colA.includes('建议喂食量') && colB) {
+      const digits = colB.replace(/[^\d]/g, '');
+      const val = parseFloat(digits);
+      if (val > 0) recipe.dailyIntake = val;
+    }
+
+    if (colA.includes('忌')) {
+      recipe.notes.push(colA);
+    }
+  }
+
+  if (recipe.ingredients.length === 0) {
+    throw new Error('未找到食材数据，请确认文件格式');
+  }
+  return recipe;
+}
+
+function parsePerKgAmount(str) {
+  const cleaned = str.replace(/１/g, '1').replace(/．/g, '.');
+  const m = cleaned.match(/添加([\d.]+)\s*([^\d\s.]+)/);
+  if (!m) return null;
+  return { amount: parseFloat(m[1]), unit: m[2].trim() };
+}
+
+// --- Calculation ---
+
+function totalPercentage() {
+  return state.recipe.ingredients.reduce((s, ing) => s + ing.percentage, 0);
+}
+
+function initWeights(recipe) {
+  const total = recipe.dailyIntake * 10;
+  state.totalWeight = total;
+  state.prevTotalWeight = null;
+  const pctSum = recipe.ingredients.reduce((s, ing) => s + ing.percentage, 0);
+  if (pctSum <= 0) return;
+
+  recipe.ingredients.forEach(ing => {
+    ing.currentWeight = total * (ing.percentage / pctSum);
+    ing.prevWeight = null;
+  });
+  recipe.supplements.forEach(sup => {
+    sup.currentAmount = (total / 1000) * sup.amountPerKg;
+    sup.prevAmount = null;
+  });
+}
+
+function updateTotalWeight(newTotal) {
+  if (newTotal <= 0 || !state.recipe) return;
+  const pctSum = totalPercentage();
+  if (pctSum <= 0) return;
+
+  state.prevTotalWeight = state.totalWeight;
+
+  state.recipe.ingredients.forEach(ing => {
+    ing.prevWeight = ing.currentWeight;
+    ing.currentWeight = newTotal * (ing.percentage / pctSum);
+  });
+  state.recipe.supplements.forEach(sup => {
+    sup.prevAmount = sup.currentAmount;
+    sup.currentAmount = (newTotal / 1000) * sup.amountPerKg;
+  });
+
+  state.totalWeight = newTotal;
+}
+
+function updateIngredientWeight(index, newWeight) {
+  if (newWeight <= 0 || !state.recipe) return;
+  const old = state.recipe.ingredients[index].currentWeight;
+  if (old <= 0) return;
+  const scale = newWeight / old;
+
+  state.prevTotalWeight = state.totalWeight;
+
+  state.recipe.ingredients.forEach((ing, i) => {
+    ing.prevWeight = ing.currentWeight;
+    ing.currentWeight = i === index ? newWeight : ing.currentWeight * scale;
+  });
+  state.recipe.supplements.forEach(sup => {
+    sup.prevAmount = sup.currentAmount;
+    sup.currentAmount *= scale;
+  });
+
+  state.totalWeight *= scale;
+}
+
+function resetDeltas() {
+  if (!state.recipe) return;
+  state.prevTotalWeight = null;
+  state.recipe.ingredients.forEach(ing => { ing.prevWeight = null; });
+  state.recipe.supplements.forEach(sup => { sup.prevAmount = null; });
+  render();
+}
+
+// --- Formatting ---
+
+function fmtWeight(v) {
+  if (v >= 10 && Math.abs(v - Math.round(v)) < 0.05) return Math.round(v).toString();
+  return v.toFixed(1);
+}
+
+function fmtAmount(v) {
+  if (v >= 1 && v === Math.round(v)) return Math.round(v).toString();
+  return v >= 10 ? v.toFixed(1) : v.toFixed(2);
+}
+
+function deltaHTML(diff, unit) {
+  if (diff == null || Math.abs(diff) < 0.05) return '';
+  const up = diff > 0;
+  const cls = up ? 'up' : 'down';
+  const arrow = up ? '↑' : '↓';
+  const sign = up ? '+' : '';
+  const val = Math.abs(diff) >= 10 ? Math.round(diff) : diff.toFixed(1);
+  return `<span class="delta ${cls}">${arrow} ${sign}${val}${unit}</span>`;
+}
+
+// --- Rendering ---
+
+function render() {
+  const r = state.recipe;
+  if (!r) return;
+
+  document.getElementById('appTitle').textContent = r.title;
+  document.getElementById('totalInput').value = fmtWeight(state.totalWeight);
+
+  // Total delta
+  const totalDeltaEl = document.getElementById('totalDelta');
+  if (state.prevTotalWeight != null) {
+    const diff = state.totalWeight - state.prevTotalWeight;
+    totalDeltaEl.innerHTML = deltaHTML(diff, '克');
+  } else {
+    totalDeltaEl.innerHTML = '';
+  }
+
+  // Ingredients
+  const ingList = document.getElementById('ingredientsList');
+  ingList.innerHTML = r.ingredients.map((ing, i) => {
+    const d = ing.prevWeight != null ? ing.currentWeight - ing.prevWeight : null;
+    return `
+      <div class="row">
+        <div class="row-info">
+          <div class="row-name">${esc(ing.name)}</div>
+          ${ing.note ? `<div class="row-note">${esc(ing.note)}</div>` : ''}
+        </div>
+        <div class="row-value">
+          <input type="number" class="weight-input" inputmode="decimal"
+                 value="${fmtWeight(ing.currentWeight)}"
+                 data-index="${i}"
+                 onfocus="this.select()"
+                 onblur="commitIngredient(this)"
+                 onkeydown="if(event.key==='Enter'){this.blur()}">
+          <span class="row-unit">克</span>
+        </div>
+        ${deltaHTML(d, '')}
+      </div>`;
+  }).join('');
+
+  // Supplements
+  const supList = document.getElementById('supplementsList');
+  const supCard = document.getElementById('supplementsCard');
+  if (r.supplements.length === 0) {
+    supCard.classList.add('hidden');
+  } else {
+    supCard.classList.remove('hidden');
+    supList.innerHTML = r.supplements.map(sup => {
+      const d = sup.prevAmount != null ? sup.currentAmount - sup.prevAmount : null;
+      return `
+        <div class="row">
+          <div class="row-info">
+            <div class="row-name">${esc(sup.name)}</div>
+            ${sup.note ? `<div class="row-note">${esc(sup.note)}</div>` : ''}
+          </div>
+          <div class="row-value">
+            <span class="amount-text">${fmtAmount(sup.currentAmount)}</span>
+            <span class="row-unit">${esc(sup.unit)}</span>
+          </div>
+          ${deltaHTML(d, '')}
+        </div>`;
+    }).join('');
+  }
+
+  // Notes
+  const notesCard = document.getElementById('notesCard');
+  const notesList = document.getElementById('notesList');
+  if (r.notes.length === 0) {
+    notesCard.classList.add('hidden');
+  } else {
+    notesCard.classList.remove('hidden');
+    notesList.innerHTML = r.notes.map(n => `<div class="note-item">${esc(n)}</div>`).join('');
+  }
+}
+
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
+
+// --- Event Handlers ---
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const recipe = parseXLSX(data);
+      initWeights(recipe);
+      state.recipe = recipe;
+
+      document.getElementById('recipeContent').classList.remove('hidden');
+      const area = document.getElementById('uploadArea');
+      area.classList.add('imported');
+      document.getElementById('uploadLabel').textContent = '重新上传食谱';
+
+      render();
+    } catch (err) {
+      alert('导入错误：' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+});
+
+document.getElementById('confirmBtn').addEventListener('click', () => {
+  const val = parseFloat(document.getElementById('totalInput').value);
+  if (val > 0) {
+    updateTotalWeight(val);
+    render();
+  }
+});
+
+document.getElementById('totalInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.target.blur();
+    document.getElementById('confirmBtn').click();
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', resetDeltas);
+
+function commitIngredient(input) {
+  const idx = parseInt(input.dataset.index);
+  const val = parseFloat(input.value);
+  if (!state.recipe || idx >= state.recipe.ingredients.length) return;
+  const current = state.recipe.ingredients[idx].currentWeight;
+  if (isNaN(val) || val <= 0) {
+    input.value = fmtWeight(current);
+    return;
+  }
+  if (Math.abs(val - current) < 0.01) return;
+  updateIngredientWeight(idx, val);
+  render();
+}
+</script>
+</body>
+</html>
